@@ -28,6 +28,12 @@ float wheel_drive=Omniwheel::NEW_325;
 double rpm_drive=600;
 //drivetrain horizontal drift
 double h_drift_drive=2;
+//lookahead (pure pursuit)
+double lookahead=15;
+//timeout (pure pursuit)
+double timeout=2000;
+//auton file
+ASSET(auton0_txt);
 ///
 
 /// drivetrain
@@ -114,6 +120,13 @@ void opcontrol(){
 		chassis.arcade(y_l, x_r);
 		delay(25);
 	}
+}
+///
+
+/// auton (path.jerryio.com)
+void autonomous(){
+	chassis.setPose(0,0,0);
+	chassis.follow(auton0_txt, lookahead, timeout);
 }
 ///
 
