@@ -98,6 +98,7 @@ Chassis chassis(drive, control_lat, control_ang, odom_sens);
 void initialize(){
 	lcd::initialize;
 	chassis.calibrate();
+	delay(2000);
 	Task screen_task(
 		[&](){
 			while (true){
