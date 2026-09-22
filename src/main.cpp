@@ -98,10 +98,22 @@ void initialize(){
 				lcd::print(0, "x: %f", chassis.getPose().x);
 				lcd::print(1, "y: %f", chassis.getPose().y);
 				lcd::print(2, "yheta: %f", chassis.getPose().theta);
-				delay(20);
+				delay(25);
 			}
 		}
 	);
+}
+///
+
+/// driver control
+Controller ctrler(E_CONTROLLER_MASTER);
+void opcontrol(){
+	while (true){
+		int y_l=ctrler.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);
+		int x_r=ctrler.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
+		chassis.arcade(y_l, x_r);
+		delay(25);
+	}
 }
 ///
 
