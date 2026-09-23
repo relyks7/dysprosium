@@ -5,8 +5,8 @@ using namespace lemlib;
 
 /// unset params
 //motor ports, +/- for direction
-int p_l1=2;
-int p_l2=1;
+int p_l1=-2;
+int p_l2=-1;
 int p_r1=4;
 int p_r2=3;
 ///
