@@ -9,6 +9,9 @@ int p_l1=-2;
 int p_l2=-1;
 int p_r1=4;
 int p_r2=3;
+//lift ports, +/- for direction
+int p_lft1=0;
+int p_lft2=0;
 ///
 
 /// set params
@@ -24,6 +27,9 @@ double h_drift_drive=2;
 double lookahead=15;
 //timeout (pure pursuit)
 double timeout=2000;
+//lift speeds, millivolts
+int lftspd_up=12000;
+int lftspd_down=6000;
 //auton file
 ASSET(auton0_txt);
 ///
@@ -40,6 +46,15 @@ Drivetrain drive(
 	rpm_drive,
 	h_drift_drive
 );
+
+/// lift
+//two lift motors for dr4b (might need pid, don't know yet)
+Motor lft1(p_lft1, v5::MotorGears::red);
+Motor lft2(p_lft2, v5::MotorGears::red);
+///
+
+/// pid
+//lateral controller
 ControllerSettings control_lat(
 	10, //k_p
 	0, //k_i
@@ -92,13 +107,25 @@ void initialize(){
 }
 ///
 
-/// driver control
+/// control
 Controller ctrler(E_CONTROLLER_MASTER);
 void opcontrol(){
 	while (true){
+		//drive
 		int y_l=ctrler.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);
 		int x_r=ctrler.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
 		chassis.arcade(y_l, x_r);
+		//lift
+		if (ctrler.get_digital(E_CONTROLLER_DIGITAL_UP)){
+			lft1.move_voltage(lftspd_up);
+			lft2.move_voltage(lftspd_up);
+		} else if (ctrler.get_digital(E_CONTROLLER_DIGITAL_DOWN)){
+			lft1.move_voltage(-lftspd_down);
+			lft2.move_voltage(-lftspd_down);
+		} else{
+			lft1.move_voltage(0);
+			lft2.move_voltage(0);
+		}
 		delay(25);
 	}
 }
