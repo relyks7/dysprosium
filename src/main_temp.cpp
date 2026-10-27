@@ -5,13 +5,13 @@ using namespace lemlib;
 
 /// unset params
 //motor ports, +/- for direction
-int p_l1=-2;
+int p_l1=-10;
 int p_l2=-1;
-int p_r1=4;
-int p_r2=3;
+int p_r1=20;
+int p_r2=11;
 //lift ports, +/- for direction
-int p_lft1=0;
-int p_lft2=0;
+int p_lft1=9;
+int p_lft2=-19;
 ///
 
 /// set params
@@ -27,9 +27,14 @@ double h_drift_drive=2;
 double lookahead=15;
 //timeout (pure pursuit)
 double timeout=2000;
-//lift speeds, millivolts
-int lftspd_up=12000;
-int lftspd_down=6000;
+//lift speeds, velocity
+int lftspd_up=40;
+int lftspd_down=30;
+int drop_speed=150;
+//pneumatic claw
+adi::Pneumatics claw('a', false);
+bool is_extend=false;
+bool is_press=false;
 //auton file
 ASSET(auton0_txt);
 ///
@@ -99,11 +104,17 @@ void initialize(){
 			while (true){
 				lcd::print(0, "x: %f", chassis.getPose().x);
 				lcd::print(1, "y: %f", chassis.getPose().y);
-				lcd::print(2, "yheta: %f", chassis.getPose().theta);
+				lcd::print(2, "theta: %f", chassis.getPose().theta);
 				delay(25);
 			}
 		}
 	);
+}
+///
+
+/// init io
+void initializeIO(){
+
 }
 ///
 
@@ -116,16 +127,28 @@ void opcontrol(){
 		int x_r=ctrler.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
 		chassis.arcade(y_l, x_r);
 		//lift
-		if (ctrler.get_digital(E_CONTROLLER_DIGITAL_UP)){
-			lft1.move_voltage(lftspd_up);
-			lft2.move_voltage(lftspd_up);
-		} else if (ctrler.get_digital(E_CONTROLLER_DIGITAL_DOWN)){
-			lft1.move_voltage(-lftspd_down);
-			lft2.move_voltage(-lftspd_down);
+		if (ctrler.get_digital(E_CONTROLLER_DIGITAL_R1)){
+			lft1.move_velocity(lftspd_up);
+			lft2.move_velocity(lftspd_up);
+		} else if (ctrler.get_digital(E_CONTROLLER_DIGITAL_L1)){
+			lft1.move_velocity(-lftspd_down);
+			lft2.move_velocity(-lftspd_down);
+		} else if (ctrler.get_digital(E_CONTROLLER_DIGITAL_R2)){
+			lft1.move_velocity(-drop_speed);
+			lft2.move_velocity(-drop_speed);
 		} else{
-			lft1.move_voltage(0);
-			lft2.move_voltage(0);
+			lft1.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+			lft2.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+			lft1.move_velocity(0);
+			lft2.move_velocity(0);
 		}
+		//claw
+		if (ctrler.get_digital(E_CONTROLLER_DIGITAL_L2) && !is_press){
+			is_press=true;
+			if (is_extend) claw.retract();
+			else claw.extend();
+			is_extend=!is_extend;
+		} else is_press=false;
 		delay(25);
 	}
 }
