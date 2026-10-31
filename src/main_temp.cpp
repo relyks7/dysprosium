@@ -13,7 +13,8 @@ int p_r2=11;
 int p_lft1=9;
 int p_lft2=-19;
 ///
-
+//imu potr
+int p_imu=8;
 /// set params
 //track width (in)
 int w_track=13;
@@ -28,7 +29,7 @@ double lookahead=15;
 //timeout (pure pursuit)
 double timeout=2000;
 //lift speeds, velocity
-int lftspd_up=40;
+int lftspd_up=70;
 int lftspd_down=30;
 int drop_speed=150;
 //pneumatic claw
@@ -83,12 +84,13 @@ ControllerSettings control_ang(
 	500, //large error range, time
 	0 
 );
+Imu imu(p_imu); //intertial measurement unit;
 OdomSensors odom_sens(
 	nullptr,
 	nullptr,
 	nullptr,
 	nullptr,
-	nullptr
+	&imu
 );
 /// chassis
 Chassis chassis(drive, control_lat, control_ang, odom_sens);
@@ -96,6 +98,8 @@ Chassis chassis(drive, control_lat, control_ang, odom_sens);
 
 /// init
 void initialize(){
+	lft1.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+	lft2.set_brake_mode(E_MOTOR_BRAKE_HOLD);
 	lcd::initialize();
 	chassis.calibrate();
 	delay(2000);
@@ -112,12 +116,6 @@ void initialize(){
 }
 ///
 
-/// init io
-void initializeIO(){
-
-}
-///
-
 /// control
 Controller ctrler(E_CONTROLLER_MASTER);
 void opcontrol(){
@@ -128,8 +126,8 @@ void opcontrol(){
 		chassis.arcade(y_l, x_r);
 		//lift
 		if (ctrler.get_digital(E_CONTROLLER_DIGITAL_R1)){
-			lft1.move_velocity(lftspd_up);
-			lft2.move_velocity(lftspd_up);
+			lft1.move(127);
+			lft2.move(127);
 		} else if (ctrler.get_digital(E_CONTROLLER_DIGITAL_L1)){
 			lft1.move_velocity(-lftspd_down);
 			lft2.move_velocity(-lftspd_down);
@@ -137,17 +135,17 @@ void opcontrol(){
 			lft1.move_velocity(-drop_speed);
 			lft2.move_velocity(-drop_speed);
 		} else{
-			lft1.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-			lft2.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-			lft1.move_velocity(0);
-			lft2.move_velocity(0);
+			lft1.brake();
+			lft2.brake();
 		}
 		//claw
-		if (ctrler.get_digital(E_CONTROLLER_DIGITAL_L2) && !is_press){
+		if (ctrler.get_digital(E_CONTROLLER_DIGITAL_L2)){
+			if (!is_press){
+				if (is_extend) claw.retract();
+				else claw.extend();
+				is_extend=!is_extend;
+			}
 			is_press=true;
-			if (is_extend) claw.retract();
-			else claw.extend();
-			is_extend=!is_extend;
 		} else is_press=false;
 		delay(25);
 	}
