@@ -1,8 +1,24 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
 #include "main.h"
 #include "lemlib/api.hpp"
 using namespace pros;
 using namespace lemlib;
-
+struct tickstep{
+	float ly;
+	float rx;
+	int r1;
+	int r2;
+	int l1;
+	int l2;
+};
+std::vector<tickstep> temppath{};
+bool RECORDTOGGLE=false;;
+bool RECORD=false;
+bool a_press=false;
+bool b_press=false;
 /// unset params
 //motor ports, +/- for direction
 int p_l1=-10;
@@ -37,7 +53,7 @@ adi::Pneumatics claw('a', false);
 bool is_extend=false;
 bool is_press=false;
 //auton file
-ASSET(auton0_txt);
+ASSET(autonplaybackpath_txt);
 ///
 
 /// drivetrain
@@ -109,6 +125,8 @@ void initialize(){
 				lcd::print(0, "x: %f", chassis.getPose().x);
 				lcd::print(1, "y: %f", chassis.getPose().y);
 				lcd::print(2, "theta: %f", chassis.getPose().theta);
+				lcd::print(3, "RECORDING HARD SWITCH IS TOGGLED?: %s", RECORDTOGGLE);
+				lcd::print(3, "RECORDING IS ON?: %s", RECORD && RECORDTOGGLE);
 				delay(25);
 			}
 		}
@@ -147,15 +165,85 @@ void opcontrol(){
 			}
 			is_press=true;
 		} else is_press=false;
+		if (ctrler.get_digital(E_CONTROLLER_DIGITAL_B)){
+			if (!b_press){
+				RECORDTOGGLE=!RECORDTOGGLE;
+			}
+			b_press=true;
+		} else b_press=false;
+		if (RECORDTOGGLE){
+			//record
+			if (ctrler.get_digital(E_CONTROLLER_DIGITAL_A)){
+				if (!a_press){
+					RECORD=!RECORD;
+					if (!RECORD){
+						std::cout<<"DUMPSTART\n";
+						for (auto [a, b, c, d, e, f]:temppath){
+							std::cout<<a<<' '<<b<<' '<<c<<' '<<d<<' '<<e<<' '<<f<<'\n';
+						}
+						std::cout<<"DUMPEND\n";
+						temppath.clear();
+					}
+				}
+				a_press=true;
+			} else a_press=false;
+			if (RECORD){
+				temppath.push_back(tickstep{y_l, x_r, ctrler.get_digital(E_CONTROLLER_DIGITAL_R1), ctrler.get_digital(E_CONTROLLER_DIGITAL_R2), ctrler.get_digital(E_CONTROLLER_DIGITAL_L1), ctrler.get_digital(E_CONTROLLER_DIGITAL_L2)});
+			}
+		}
 		delay(25);
 	}
 }
 ///
 
 /// auton (path.jerryio.com)
+/*
+idea: rerun a prerecorded path
+needs:
+arcade at every timestep
+digital at every timestep
+=> LY, RX, R1, R2, L1, L2
+*/
 void autonomous(){
-	chassis.setPose(0,0,0);
-	chassis.follow(auton0_txt, lookahead, timeout);
+	is_extend=false;
+	is_press=false;
+	std::string curline;
+	std::string file_content(reinterpret_cast<char*>(autonplaybackpath_txt.buf), autonplaybackpath_txt.size);
+    std::stringstream pathtestfile(file_content);
+	while (getline(pathtestfile, curline)){
+		std::stringstream ss(curline);
+		float LY, RX;
+		int R1, R2, L1, L2;
+		ss>>LY>>RX>>R1>>R2>>L1>>L2;
+		//drive
+		int y_l=LY;
+		int x_r=RX;
+		chassis.arcade(y_l, x_r);
+		//lift
+		if (R1){
+			lft1.move(127);
+			lft2.move(127);
+		} else if (L1){
+			lft1.move_velocity(-lftspd_down);
+			lft2.move_velocity(-lftspd_down);
+		} else if (R2){
+			lft1.move_velocity(-drop_speed);
+			lft2.move_velocity(-drop_speed);
+		} else{
+			lft1.brake();
+			lft2.brake();
+		}
+		//claw
+		if (L2){
+			if (!is_press){
+				if (is_extend) claw.retract();
+				else claw.extend();
+				is_extend=!is_extend;
+			}
+			is_press=true;
+		} else is_press=false;
+		delay(25);
+	}
 }
 ///
 
